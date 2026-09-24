@@ -230,7 +230,7 @@ INDEX_HTML = r"""<!DOCTYPE html>
   html,body{margin:0;padding:0;background:var(--paper);color:var(--ink)}
   body{
     font-family:-apple-system,BlinkMacSystemFont,"Pretendard","Apple SD Gothic Neo","Noto Sans KR",sans-serif;
-    padding:8px 16px calc(130px + env(safe-area-inset-bottom));
+    padding:8px 16px calc(180px + env(safe-area-inset-bottom));
     max-width:640px;margin:0 auto;-webkit-font-smoothing:antialiased;
   }
   header{display:flex;align-items:center;justify-content:space-between;padding:14px 4px 4px}
@@ -245,7 +245,8 @@ INDEX_HTML = r"""<!DOCTYPE html>
        font-size:20px;font-weight:800;cursor:pointer;background:none;border:0;color:var(--ink);width:100%;padding:0}
   .cta:disabled{color:#a5a5a5;cursor:default}
   .chip{display:inline-flex;align-items:center;gap:6px;background:#fff;border-radius:999px;
-        padding:8px 14px;font-size:14px;font-weight:600;border:0}
+        padding:9px 16px;font-size:14px;font-weight:700;border:1.5px solid transparent;color:#111;cursor:pointer}
+  .chip:active{transform:scale(.97)}
   .rowbtn{display:flex;align-items:center;gap:14px;width:100%;background:#fff;border:1.5px solid var(--line);
           border-radius:22px;padding:16px 18px;margin-bottom:10px;font-size:17px;color:var(--ink);text-align:left;cursor:pointer}
   .rowbtn .g{width:44px;height:44px;border-radius:14px;background:#f2f2f2;display:grid;place-items:center;font-size:20px;flex:none}
@@ -280,15 +281,26 @@ INDEX_HTML = r"""<!DOCTYPE html>
   .hide{display:none}
   .err{background:#111;color:#fff;border-radius:18px;padding:14px 16px;font-size:14px;line-height:1.6;margin-bottom:14px;white-space:pre-wrap}
   .note{font-size:13px;color:var(--muted);line-height:1.7;margin:4px 4px 20px}
+  .usage{margin:22px 4px 8px;font-size:12px;color:var(--muted)}
+  .usage-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+  .usage-top b{font-size:13px;font-weight:700;color:var(--ink)}
+  .usage-bar{height:4px;background:var(--line);border-radius:99px;overflow:hidden}
+  .usage-bar i{display:block;height:100%;background:var(--ink);width:100%}
+  .usage-sub{margin-top:6px;line-height:1.6}
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){--ink:#f2f2f2;--paper:#0f0f0f;--card:#1e1e1e;--line:#2e2e2e;--muted:#9a9a9a}
-    :root:not([data-theme="light"]) .chip,
     :root:not([data-theme="light"]) .rowbtn,
     :root:not([data-theme="light"]) input,
     :root:not([data-theme="light"]) select,
     :root:not([data-theme="light"]) .bar,
     :root:not([data-theme="light"]) .tabs .in{background:#171717}
     :root:not([data-theme="light"]) .rowbtn .g{background:#242424}
+    :root:not([data-theme="light"]) .chip{background:#f2f2f2;color:#111;border-color:#f2f2f2}
+    :root:not([data-theme="light"]) .cta{color:#f2f2f2}
+    :root:not([data-theme="light"]) .cta:disabled{color:#6a6a6a}
+    :root:not([data-theme="light"]) .card .label,
+    :root:not([data-theme="light"]) .card .sub{color:#b4b4b4}
+    :root:not([data-theme="light"]) .namegrid label i{color:#6f6f6f}
     :root:not([data-theme="light"]) .tabs{background:linear-gradient(to top,#0f0f0f 70%,rgba(15,15,15,0))}
     :root:not([data-theme="light"]) .tabs button[aria-selected="true"]{background:#282828}
     :root:not([data-theme="light"]) .err{background:#f2f2f2;color:#111}
@@ -334,6 +346,12 @@ INDEX_HTML = r"""<!DOCTYPE html>
   <h2>최근 변환 <em id="count">0건</em></h2>
   <div id="recent"></div>
   <p class="note">변환한 글은 이 기기에만 잠시 남습니다. 중요한 내용은 내려받아 두세요.</p>
+
+  <div class="usage" id="usage">
+    <div class="usage-top"><span>남은 무료 사용량</span><b id="u-left">-</b></div>
+    <div class="usage-bar"><i id="u-fill"></i></div>
+    <div class="usage-sub" id="u-sub"></div>
+  </div>
 </section>
 
 <!-- 결과 -->
@@ -378,6 +396,21 @@ INDEX_HTML = r"""<!DOCTYPE html>
     </div>
   </div>
   <p class="note">사람 수를 알면 적어 두는 편이 화자 구분이 정확합니다. 설정은 이 기기에 저장됩니다.</p>
+
+  <h2>무료 사용량</h2>
+  <div class="two">
+    <div class="field">
+      <label>받은 무료 크레딧 ($)</label>
+      <input id="credit" inputmode="decimal" placeholder="50">
+    </div>
+    <div class="field">
+      <label>지금까지 변환 (분)</label>
+      <input id="used" inputmode="decimal" placeholder="0">
+    </div>
+  </div>
+  <p class="note">이 기기에서 변환한 분량으로 계산한 어림치입니다. 다른 기기에서 변환한 것은 빠집니다.
+  정확한 잔액은 <a href="https://www.assemblyai.com/app" target="_blank" rel="noopener">AssemblyAI 대시보드</a>에서 확인하세요.
+  숫자가 실제와 어긋나면 위 칸을 직접 고쳐도 됩니다.</p>
 </section>
 
 <nav class="tabs">
@@ -404,10 +437,10 @@ function view(v){
 document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => view(b.dataset.v));
 $('#gear').onclick = () => view('set');
 
-['passcode','language','speakers'].forEach(id => {
+['passcode','language','speakers','credit','used'].forEach(id => {
   const el = $('#'+id);
   el.value = store.get('cfg_'+id, el.value || '');
-  el.oninput = () => store.set('cfg_'+id, el.value);
+  el.oninput = () => { store.set('cfg_'+id, el.value); drawUsage(); };
 });
 
 fetch('/api/config').then(r => r.json()).then(c => {
@@ -418,9 +451,28 @@ fetch('/api/config').then(r => r.json()).then(c => {
     .map(p => `<option value="${p}">${names[p] || p}</option>`).join('');
   sel.value = store.get('cfg_provider', sel.value);
   sel.onchange = () => store.set('cfg_provider', sel.value);
-  if (!c.providers.length) showErr('변환 업체 키가 아직 설정되지 않았습니다. Space 설정에서 API 키를 넣어 주세요.');
+  if (!c.providers.length) showErr('변환 업체 키가 아직 설정되지 않았습니다. Render 설정에서 API 키를 넣어 주세요.');
 });
 
+const RATE = 0.0025;  // AssemblyAI 분당 요금(달러)
+function drawUsage(){
+  const credit = parseFloat(store.get('cfg_credit', '') || '50') || 50;
+  const used = parseFloat(store.get('cfg_used', '') || '0') || 0;
+  const total = credit / RATE;              // 총 변환 가능 분
+  const left = Math.max(0, total - used);
+  const pct = total ? Math.max(0, Math.min(100, left / total * 100)) : 0;
+  const h = Math.floor(left / 60);
+  $('#u-left').textContent = h >= 1 ? h.toLocaleString() + '시간' : Math.round(left) + '분';
+  $('#u-fill').style.width = pct + '%';
+  $('#u-sub').textContent = '지금까지 ' + Math.round(used) + '분 변환 · 약 $'
+    + (left * RATE).toFixed(2) + ' 남음 · 90분 한 건당 약 $' + (90 * RATE).toFixed(2);
+}
+function addUsage(minutes){
+  const used = (parseFloat(store.get('cfg_used', '') || '0') || 0) + minutes;
+  store.set('cfg_used', String(Math.round(used * 10) / 10));
+  const el = $('#used'); if (el) el.value = store.get('cfg_used', '');
+  drawUsage();
+}
 function showErr(m){ $('#err-box').innerHTML = `<div class="err">${m}</div>`; }
 function clearErr(){ $('#err-box').innerHTML = ''; }
 function ts(s){
@@ -507,10 +559,14 @@ function show(j, filename){
   result = j; names = {};
   $('#go').disabled = false;
   $('#bar').classList.add('hide');
+  $('#bar i').style.width = '0%';
+  $('#fmeta').textContent = picked ? (picked.size/1048576).toFixed(1) + 'MB' : '최대 90분, m4a·mp3·wav·mp4';
   $('#r-name').textContent = filename || '결과';
   $('#r-count').textContent = j.blocks.length + '문단';
   $('#r-speakers').textContent = '화자 ' + (j.speakers || []).length + '명';
   drawNames(j);
+  const last = j.blocks.length ? j.blocks[j.blocks.length - 1].end : 0;
+  if (last > 0) addUsage(last / 60);
   recent.unshift({ name: filename, at: Date.now(), blocks: j.blocks, speakers: j.speakers });
   recent = recent.slice(0, 5);
   store.set('recent', recent);
@@ -584,6 +640,7 @@ function drawRecent(){
   });
 }
 drawRecent();
+drawUsage();
 </script>
 </body>
 </html>
